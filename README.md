@@ -151,7 +151,11 @@ Google Sheets Trigger
 
 ## 📸 Screenshots
 
-> *(Add your n8n workflow screenshot and Google Sheet output screenshot here)*
+<img width="1600" height="900" alt="WhatsApp Image 2026-06-04 at 1 50 20 PM" src="https://github.com/user-attachments/assets/bd4d2110-e0d1-4b72-b124-fc224806514f" />
+<img width="1600" height="900" alt="WhatsApp Image 2026-06-04 at 1 52 12 PM" src="https://github.com/user-attachments/assets/fc4de26e-7b2b-4cb5-9d6a-95370eebf292" />
+<img width="1600" height="900" alt="WhatsApp Image 2026-06-04 at 1 53 07 PM" src="https://github.com/user-attachments/assets/425765e7-9569-4552-af09-3b8e69b8b199" />
+
+
 
 -----
 
