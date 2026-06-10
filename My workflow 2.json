@@ -1,0 +1,1207 @@
+{
+  "name": "My workflow 2",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "a5f147be-fb43-4b8a-8a54-649a7c6e5b60",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1yTZCiDW4gj92phke7ULcCb64pd1wKjkvmqqfevpoYaI",
+          "mode": "list",
+          "cachedResultName": "Fraud Detection Dataset FINAL",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1yTZCiDW4gj92phke7ULcCb64pd1wKjkvmqqfevpoYaI/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1253593329,
+          "mode": "list",
+          "cachedResultName": "Transaction_Data",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1yTZCiDW4gj92phke7ULcCb64pd1wKjkvmqqfevpoYaI/edit#gid=1253593329"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        208,
+        32
+      ],
+      "id": "d772733e-b9d8-43da-8fe8-7787470a680c",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LxFKGbHtrHZGBMgV",
+          "name": "Google Sheets OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const row = $input.item.json;\n\nlet score = 0;\nlet rules = [];\n\nconst transactionId = row[\"Transaction_ID\"] || \"\";\nconst customerName = row[\"Customer_Name\"] || \"\";\nconst amount = parseFloat(row[\"Amount_(INR)\"]) || 0;\nconst location = row[\"Location\"] || \"\";\nconst accAge = parseInt(row[\"Account_Age_(Days)\"]) || 0;\nconst prevTxn = parseInt(row[\"Prev_Txn_Count\"]) || 0;\nconst outflow = parseFloat(row[\"Outflow_Ratio_%\"]) || 0;\nconst txnType = row[\"Transaction_Type\"] || \"\";\nconst impTravel = row[\"Impossible_Travel\"] || \"\";\nconst timeStr = row[\"Transaction_Time\"] || \"\";\nconst hour = timeStr ? parseInt(timeStr.split(\" \")[1]?.split(\":\")[0]) : 12;\n\nif (amount > 50000) { score++; rules.push(\"R1:HighValue\"); }\nif ([10000, 50000, 100000].includes(amount)) { score++; rules.push(\"R2:RoundAmount\"); }\nif (amount < 10 && accAge < 30) { score++; rules.push(\"R3:MicroProbe\"); }\nif (impTravel === \"Yes\") { score++; rules.push(\"R4:VelocityBreach\"); }\nif (outflow > 90) { score++; rules.push(\"R5:MulePattern\"); }\nif (hour >= 1 && hour <= 4) { score++; rules.push(\"R6:OffHours\"); }\nif (accAge > 90 && prevTxn < 2) { score++; rules.push(\"R7:DormantSpike\"); }\nif (prevTxn === 0 && amount > 40000) { score++; rules.push(\"R8:FirstHighVal\"); }\nif (location === \"Unknown\" || location === \"Foreign\") { score++; rules.push(\"R9:ForeignLoc\"); }\nif (txnType.includes(\"UPI\") && amount > 5000) { score++; rules.push(\"R11:UPIAbuse\"); }\nif (location === \"Foreign\" && amount >= 40000 && amount <= 49999) { score++; rules.push(\"R12:CrossBorder\"); }\n\nlet status = \"\";\nif (score === 0) status = \"CLEAR\";\nelse if (score === 1) status = \"LOW RISK\";\nelse if (score <= 3) status = \"MEDIUM RISK\";\nelse status = \"HIGH RISK\";\n\n$input.item.json.Transaction_ID = transactionId;\n$input.item.json.Customer_Name = customerName;\n$input.item.json[\"Amount_(INR)\"] = amount;\n$input.item.json.Location = location;\n$input.item.json.Rules_Triggered = rules.length > 0 ? rules.join(\", \") : \"None\";\n$input.item.json.Risk_Score = score;\n$input.item.json.Fraud_Status = status;\n\nreturn $input.item;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        416,
+        32
+      ],
+      "id": "821151e8-79b5-473b-8d3e-ae45ae3c9f31",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "c036c015-617f-490e-92cb-4d17b8be9c8a",
+              "leftValue": "={{ $json.Risk_Score }}",
+              "rightValue": 4,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        608,
+        32
+      ],
+      "id": "f165871f-1fc7-415c-9342-88b054a3255c",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "89255438-9e76-4bac-a0b4-57570e9d670f",
+              "leftValue": "={{ $json.Risk_Score }}",
+              "rightValue": 2,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        784,
+        192
+      ],
+      "id": "e6fab0e1-4a05-4e6a-a347-33dada9a4b0c",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "5c0ac12e-b55c-46ff-8a32-81b97dfc0148",
+              "leftValue": "={{ $json.Risk_Score }}",
+              "rightValue": 1,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        976,
+        352
+      ],
+      "id": "e14be66c-f5da-43ff-815e-b2faf0db479b",
+      "name": "If2"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1yTZCiDW4gj92phke7ULcCb64pd1wKjkvmqqfevpoYaI",
+          "mode": "list",
+          "cachedResultName": "Fraud Detection Dataset FINAL",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1yTZCiDW4gj92phke7ULcCb64pd1wKjkvmqqfevpoYaI/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1253593329,
+          "mode": "list",
+          "cachedResultName": "Transaction_Data",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1yTZCiDW4gj92phke7ULcCb64pd1wKjkvmqqfevpoYaI/edit#gid=1253593329"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Transaction_ID": "={{ $json.Transaction_ID }}",
+            "Rules_Triggered": "={{ $json.Rules_Triggered }}",
+            "Risk_Score": "={{ $json.Risk_Score }}",
+            "Fraud_Status": "={{ $json.Fraud_Status }}"
+          },
+          "matchingColumns": [
+            "Transaction_ID"
+          ],
+          "schema": [
+            {
+              "id": "Transaction_ID",
+              "displayName": "Transaction_ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Customer_ID",
+              "displayName": "Customer_ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Customer_Name",
+              "displayName": "Customer_Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Amount_(INR)",
+              "displayName": "Amount_(INR)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Transaction_Time",
+              "displayName": "Transaction_Time",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Location",
+              "displayName": "Location",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Account_Age_(Days)",
+              "displayName": "Account_Age_(Days)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Prev_Txn_Count",
+              "displayName": "Prev_Txn_Count",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Outflow_Ratio_%",
+              "displayName": "Outflow_Ratio_%",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Transaction_Type",
+              "displayName": "Transaction_Type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Merchant_Category",
+              "displayName": "Merchant_Category",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Device_Status",
+              "displayName": "Device_Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Impossible_Travel",
+              "displayName": "Impossible_Travel",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Rules_Triggered",
+              "displayName": "Rules_Triggered",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Risk_Score",
+              "displayName": "Risk_Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Fraud_Status",
+              "displayName": "Fraud_Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        800,
+        -80
+      ],
+      "id": "fa998189-791f-48b8-a082-b62c1d5b2864",
+      "name": "Update row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LxFKGbHtrHZGBMgV",
+          "name": "Google Sheets OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1yTZCiDW4gj92phke7ULcCb64pd1wKjkvmqqfevpoYaI",
+          "mode": "list",
+          "cachedResultName": "Fraud Detection Dataset FINAL",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1yTZCiDW4gj92phke7ULcCb64pd1wKjkvmqqfevpoYaI/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1253593329,
+          "mode": "list",
+          "cachedResultName": "Transaction_Data",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1yTZCiDW4gj92phke7ULcCb64pd1wKjkvmqqfevpoYaI/edit#gid=1253593329"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Transaction_ID": "={{ $json.Transaction_ID }}",
+            "Rules_Triggered": "={{ $json.Rules_Triggered }}",
+            "Risk_Score": "={{ $json.Risk_Score }}",
+            "Fraud_Status": "={{ $json.Fraud_Status }}"
+          },
+          "matchingColumns": [
+            "Transaction_ID"
+          ],
+          "schema": [
+            {
+              "id": "Transaction_ID",
+              "displayName": "Transaction_ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Customer_ID",
+              "displayName": "Customer_ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Customer_Name",
+              "displayName": "Customer_Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Amount_(INR)",
+              "displayName": "Amount_(INR)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Transaction_Time",
+              "displayName": "Transaction_Time",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Location",
+              "displayName": "Location",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Account_Age_(Days)",
+              "displayName": "Account_Age_(Days)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Prev_Txn_Count",
+              "displayName": "Prev_Txn_Count",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Outflow_Ratio_%",
+              "displayName": "Outflow_Ratio_%",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Transaction_Type",
+              "displayName": "Transaction_Type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Merchant_Category",
+              "displayName": "Merchant_Category",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Device_Status",
+              "displayName": "Device_Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Impossible_Travel",
+              "displayName": "Impossible_Travel",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Rules_Triggered",
+              "displayName": "Rules_Triggered",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Risk_Score",
+              "displayName": "Risk_Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Fraud_Status",
+              "displayName": "Fraud_Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        960,
+        64
+      ],
+      "id": "d87566cc-853c-4b0f-8ad5-5c610e196236",
+      "name": "Update row in sheet1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LxFKGbHtrHZGBMgV",
+          "name": "Google Sheets OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1yTZCiDW4gj92phke7ULcCb64pd1wKjkvmqqfevpoYaI",
+          "mode": "list",
+          "cachedResultName": "Fraud Detection Dataset FINAL",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1yTZCiDW4gj92phke7ULcCb64pd1wKjkvmqqfevpoYaI/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1253593329,
+          "mode": "list",
+          "cachedResultName": "Transaction_Data",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1yTZCiDW4gj92phke7ULcCb64pd1wKjkvmqqfevpoYaI/edit#gid=1253593329"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Transaction_ID": "={{ $json.Transaction_ID }}",
+            "Rules_Triggered": "={{ $json.Rules_Triggered }}",
+            "Risk_Score": "={{ $json.Risk_Score }}",
+            "Fraud_Status": "={{ $json.Fraud_Status }}"
+          },
+          "matchingColumns": [
+            "Transaction_ID"
+          ],
+          "schema": [
+            {
+              "id": "Transaction_ID",
+              "displayName": "Transaction_ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Customer_ID",
+              "displayName": "Customer_ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Customer_Name",
+              "displayName": "Customer_Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Amount_(INR)",
+              "displayName": "Amount_(INR)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Transaction_Time",
+              "displayName": "Transaction_Time",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Location",
+              "displayName": "Location",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Account_Age_(Days)",
+              "displayName": "Account_Age_(Days)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Prev_Txn_Count",
+              "displayName": "Prev_Txn_Count",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Outflow_Ratio_%",
+              "displayName": "Outflow_Ratio_%",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Transaction_Type",
+              "displayName": "Transaction_Type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Merchant_Category",
+              "displayName": "Merchant_Category",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Device_Status",
+              "displayName": "Device_Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Impossible_Travel",
+              "displayName": "Impossible_Travel",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Rules_Triggered",
+              "displayName": "Rules_Triggered",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Risk_Score",
+              "displayName": "Risk_Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Fraud_Status",
+              "displayName": "Fraud_Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1200,
+        256
+      ],
+      "id": "af93bc49-0884-40c4-a081-5c6cd3066ba4",
+      "name": "Update row in sheet2",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LxFKGbHtrHZGBMgV",
+          "name": "Google Sheets OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1yTZCiDW4gj92phke7ULcCb64pd1wKjkvmqqfevpoYaI",
+          "mode": "list",
+          "cachedResultName": "Fraud Detection Dataset FINAL",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1yTZCiDW4gj92phke7ULcCb64pd1wKjkvmqqfevpoYaI/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1253593329,
+          "mode": "list",
+          "cachedResultName": "Transaction_Data",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1yTZCiDW4gj92phke7ULcCb64pd1wKjkvmqqfevpoYaI/edit#gid=1253593329"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Transaction_ID": "={{ $json.Transaction_ID }}",
+            "Rules_Triggered": "={{ $json.Rules_Triggered }}",
+            "Risk_Score": "={{ $json.Risk_Score }}",
+            "Fraud_Status": "={{ $json.Fraud_Status }}"
+          },
+          "matchingColumns": [
+            "Transaction_ID"
+          ],
+          "schema": [
+            {
+              "id": "Transaction_ID",
+              "displayName": "Transaction_ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Customer_ID",
+              "displayName": "Customer_ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Customer_Name",
+              "displayName": "Customer_Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Amount_(INR)",
+              "displayName": "Amount_(INR)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Transaction_Time",
+              "displayName": "Transaction_Time",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Location",
+              "displayName": "Location",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Account_Age_(Days)",
+              "displayName": "Account_Age_(Days)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Prev_Txn_Count",
+              "displayName": "Prev_Txn_Count",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Outflow_Ratio_%",
+              "displayName": "Outflow_Ratio_%",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Transaction_Type",
+              "displayName": "Transaction_Type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Merchant_Category",
+              "displayName": "Merchant_Category",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Device_Status",
+              "displayName": "Device_Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Impossible_Travel",
+              "displayName": "Impossible_Travel",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Rules_Triggered",
+              "displayName": "Rules_Triggered",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Risk_Score",
+              "displayName": "Risk_Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Fraud_Status",
+              "displayName": "Fraud_Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1200,
+        432
+      ],
+      "id": "c3315094-1444-4420-9ce5-1f15e139d6d8",
+      "name": "Update row in sheet3",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "LxFKGbHtrHZGBMgV",
+          "name": "Google Sheets OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "klathwal.ipm22@chitkara.edu.in",
+        "subject": "=🚨HIGH RISK ALERT - {{ $json.Transaction_ID  }}",
+        "message": "=<h2 style=\"color:red\">🚨 HIGH RISK TRANSACTION DETECTED</h2>\n<b>Transaction ID:</b> {{ $json.Transaction_ID }}<br>\n<b>Customer:</b> {{ $node[\"Code in JavaScript\"].json[\"Customer_Name\"] }}<br>\n<b>Amount:</b> ₹{{ $node[\"Code in JavaScript\"].json[\"Amount_(INR)\"] }}<br>\n<b>Location:</b> {{ $node[\"Code in JavaScript\"].json[\"Location\"] }}<br>\n<b>Rules Triggered:</b> {{ $json.Rules_Triggered }}<br>\n<b>Risk Score:</b> {{ $json.Risk_Score }}<br>\n<b>Status:</b> <span style=\"color:red\">HIGH RISK 🔴</span><br><br>\n<b>ACTION: Block transaction and escalate to Risk Manager immediately.</b><br>\n— Automated Fraud Detection System",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1024,
+        -80
+      ],
+      "id": "02935e94-b051-4741-99e8-3bc40943f1ab",
+      "name": "Send a message",
+      "webhookId": "aa9a360b-7814-4d5e-97da-be089a8e40a8",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "7GQAsosq9MRhdcJb",
+          "name": "Gmail OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "klathwal.ipm22@chitkara.edu.in",
+        "subject": "=⚠️ MEDIUM RISK FLAGGED - {{ $json.Transaction_ID }}",
+        "message": "=<h2 style=\"color:orange\">⚠️ MEDIUM RISK TRANSACTION FLAGGED</h2>  <b>Transaction ID:</b> {{ $json.Transaction_ID }}<br> <b>Customer:</b> {{ $node[\"Code in JavaScript\"].json[\"Customer_Name\"] }}<br>\n<b>Amount:</b> ₹{{ $node[\"Code in JavaScript\"].json[\"Amount_(INR)\"] }}<br>\n<b>Location:</b> {{ $node[\"Code in JavaScript\"].json[\"Location\"] }}<br> <b>Rules Triggered:</b> {{ $json.Rules_Triggered }}<br> <b>Risk Score:</b> {{ $json.Risk_Score }}<br> <b>Status:</b> <span style=\"color:orange\">MEDIUM RISK 🟠</span><br><br>  Please review and monitor this transaction.<br><br> — Automated Fraud Detection System",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1200,
+        64
+      ],
+      "id": "1826f0d6-088d-4c31-9e35-3611f99cec2a",
+      "name": "Send a message1",
+      "webhookId": "6874ac8e-9a5d-4fba-99b6-0432ba38929f",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "7GQAsosq9MRhdcJb",
+          "name": "Gmail OAuth2 API"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "Update row in sheet1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "If2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If2": {
+      "main": [
+        [
+          {
+            "node": "Update row in sheet2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update row in sheet3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update row in sheet": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update row in sheet1": {
+      "main": [
+        [
+          {
+            "node": "Send a message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "2fa47274-297d-4c76-8236-a02fb022ab8c",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "26c4f5f0ac26f297a81aed3515898746337b3d7376f11454bb31bfd683085c40"
+  },
+  "id": "yDHhwKl7ceWZvchm",
+  "tags": []
+}
